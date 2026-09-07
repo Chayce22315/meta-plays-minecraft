@@ -45,7 +45,7 @@ public final class AiPlayerController {
             currentAction = AiAction.noop();
         }
 
-        if (--ticksUntilThink <= 0 && !thinking && minecraft.screen == null) {
+        if (--ticksUntilThink <= 0 && !thinking && minecraft.gui.screen() == null) {
             ticksUntilThink = THINK_INTERVAL_TICKS;
             thinking = true;
             aiClient.decide(PlayerPerception.snapshot(minecraft))
