@@ -18,11 +18,9 @@ public final class CraftingController {
     public static void start(Minecraft minecraft, LocalPlayer player, String recipe) {
         String normalized = recipe == null ? "" : recipe.toLowerCase(Locale.ROOT).trim();
         RecipePlan plan = RecipePlan.byName(normalized);
-        if (plan == null) {
-            return;
-        }
+        if (plan == null) return;
         job = new Job(plan, 0);
-        if (!(minecraft.screen != null)) {
+        if (minecraft.gui.screen() == null) {
             minecraft.options.keyUse.setDown(true);
         }
     }
@@ -63,8 +61,8 @@ public final class CraftingController {
     }
 
     private static int findInventoryItem(LocalPlayer player, String wanted) {
-        for (int i = 0; i < player.getInventory().items.size(); i++) {
-            ItemStack stack = player.getInventory().items.get(i);
+        for (int i = 0; i < 41; i++) {
+            ItemStack stack = player.getInventory().getItem(i);
             if (!stack.isEmpty() && stack.getItem().toString().toLowerCase(Locale.ROOT).contains(wanted)) {
                 return i;
             }
