@@ -13,6 +13,8 @@ public final class AiPlayerController {
     private static final int THINK_INTERVAL_TICKS = 8;
 
     private final LocalAiClient aiClient = new LocalAiClient();
+    private final AiMemory memory = new AiMemory();
+    private final StuckRecovery stuckRecovery = new StuckRecovery();
     private final AtomicReference<AiAction> pendingAction = new AtomicReference<>(AiAction.noop());
     private AiAction currentAction = AiAction.noop();
     private int ticksUntilThink;
@@ -36,21 +38,25 @@ public final class AiPlayerController {
         if (next != null && next.isKnown()) {
             currentAction = next;
             actionTicksLeft = currentAction.safeDuration();
+            memory.rememberAction(currentAction);
         }
 
         execute(minecraft);
+        stuckRecovery.tick(minecraft, currentAction, memory);
 
         actionTicksLeft--;
         if (actionTicksLeft <= 0) {
             currentAction = AiAction.noop();
         }
 
-        if (--ticksUntilThink <= 0 && !thinking && minecraft.screen == null) {
+        if (--ticksUntilThink <= 0 && !thinking && minecraft.gui.screen() == null) {
             ticksUntilThink = THINK_INTERVAL_TICKS;
             thinking = true;
-            aiClient.decide(PlayerPerception.snapshot(minecraft))
+            String context = PlayerPerception.snapshot(minecraft) + "\n" + memory.context();
+            aiClient.decide(context)
                     .whenComplete((action, error) -> {
                         if (error != null || action == null) {
+                            memory.remember("ai decision failed; waiting briefly");
                             pendingAction.set(AiAction.noop());
                         } else {
                             pendingAction.set(action);
@@ -82,5 +88,9 @@ public final class AiPlayerController {
 
     public AiAction currentAction() {
         return currentAction;
+    }
+
+    public AiMemory memory() {
+        return memory;
     }
 }
