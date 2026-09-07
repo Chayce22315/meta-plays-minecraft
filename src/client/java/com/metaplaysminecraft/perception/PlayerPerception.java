@@ -52,7 +52,7 @@ public final class PlayerPerception {
                 escape(held), escape(nearbyBlock), list(mobs), list(players), list(drops),
                 findBlock(player, Blocks.CRAFTING_TABLE, 6) != null,
                 findBed(player, 8) != null,
-                player.level().getDayTime(), player.level().isRaining(), escape(ChatMemory.snapshot()));
+                player.level().getOverworldClockTime(), player.level().isRaining(), escape(ChatMemory.snapshot()));
     }
 
     private static BlockPos findBlock(LocalPlayer player, net.minecraft.world.level.block.Block wanted, int radius) {
