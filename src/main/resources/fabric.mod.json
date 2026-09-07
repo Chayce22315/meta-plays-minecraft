@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "meta_plays_minecraft",
+  "version": "${version}",
+  "name": "Meta Plays Minecraft",
+  "description": "A Fabric client mod that lets Meta AI play Minecraft with you.",
+  "authors": [
+    "fruit snack"
+  ],
+  "contact": {
+    "sources": "https://github.com/Chayce22315/meta-plays-minecraft"
+  },
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.metaplaysminecraft.MetaPlaysMinecraft"
+    ],
+    "client": [
+      "com.metaplaysminecraft.MetaPlaysMinecraftClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}
