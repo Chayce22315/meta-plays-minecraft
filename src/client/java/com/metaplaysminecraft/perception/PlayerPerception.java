@@ -42,17 +42,17 @@ public final class PlayerPerception {
         String held = player.getMainHandItem().isEmpty() ? "empty" : player.getMainHandItem().getItem().toString() + "x" + player.getMainHandItem().getCount();
         String dimension = String.valueOf(player.level().dimension().identifier());
         String nearbyBlock = player.level().getBlockState(pos.below()).getBlock().toString();
-        boolean craftingTableNearby = findBlock(player, Blocks.CRAFTING_TABLE, 6) != null;
-        boolean bedNearby = findBed(player, 8) != null;
 
         return String.format(Locale.ROOT,
-                "{\"ready\":true,\"dimension\":\"%s\",\"pos\":[%.2f,%.2f,%.2f],\"rotation\":[%.2f,%.2f],\"health\":%.1f,\"food\":%d,\"air\":%d,\"xp\":%d,\"on_ground\":%s,\"sneaking\":%s,\"sprinting\":%s,\"held\":\"%s\",\"below\":\"%s\",\"mobs\":%s,\"players\":%s,\"drops\":%s,\"crafting_table_nearby\":%s,\"bed_nearby\":%s,\"time\":%d,\"rain\":%s}",
+                "{\"ready\":true,\"dimension\":\"%s\",\"pos\":[%.2f,%.2f,%.2f],\"rotation\":[%.2f,%.2f],\"health\":%.1f,\"food\":%d,\"air\":%d,\"xp\":%d,\"on_ground\":%s,\"sneaking\":%s,\"sprinting\":%s,\"held\":\"%s\",\"below\":\"%s\",\"mobs\":%s,\"players\":%s,\"drops\":%s,\"crafting_table_nearby\":%s,\"bed_nearby\":%s,\"time\":%d,\"rain\":%s,\"recent_chat\":\"%s\"}",
                 dimension,
                 player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot(),
                 player.getHealth(), player.getFoodData().getFoodLevel(), player.getAirSupply(), player.totalExperience,
                 player.onGround(), player.isShiftKeyDown(), player.isSprinting(),
                 escape(held), escape(nearbyBlock), list(mobs), list(players), list(drops),
-                craftingTableNearby, bedNearby, player.level().getDayTime(), player.level().isRaining());
+                findBlock(player, Blocks.CRAFTING_TABLE, 6) != null,
+                findBed(player, 8) != null,
+                player.level().getDayTime(), player.level().isRaining(), escape(ChatMemory.snapshot()));
     }
 
     private static BlockPos findBlock(LocalPlayer player, net.minecraft.world.level.block.Block wanted, int radius) {
