@@ -2,6 +2,7 @@ package com.metaplaysminecraft;
 
 import com.metaplaysminecraft.ai.AiPlayerController;
 import com.metaplaysminecraft.bridge.BotBridge;
+import com.metaplaysminecraft.config.MetaAiConfig;
 import com.metaplaysminecraft.perception.ChatMemory;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
@@ -24,6 +25,7 @@ public final class MetaPlaysMinecraftClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        MetaAiConfig.get();
         controller = new AiPlayerController();
         ChatMemory.register();
         ClientTickEvents.END_CLIENT_TICK.register(MetaPlaysMinecraftClient::onClientTick);

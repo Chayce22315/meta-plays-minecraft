@@ -17,14 +17,21 @@ fabric client mod for minecraft java 26.2 that lets a local ai model control a c
 - simple waypoint movement with obstacle-aware jumping
 - action validation and distance limits
 - local openai-compatible model bridge
+- in-game configuration through mod menu
 
-## model bridge
+## ai configuration
 
-by default the mod talks to:
+open **mod menu -> meta plays minecraft -> configure**.
 
-`http://127.0.0.1:8000/v1/chat/completions`
+### providers
 
-run your local model server with an openai-compatible api and make its model name available as `meta-plays-minecraft`.
+- **ollama**: `http://127.0.0.1:11434/v1/chat/completions`
+- **openai compatible**: any compatible chat-completions endpoint
+- **local server**: useful for llama.cpp, vllm, lm studio, or another local compatible server
+
+all three providers let you edit the endpoint, model, optional api key, generation settings, request timeout, and decision interval.
+
+configuration is saved to `config/meta_plays_minecraft.json`.
 
 ## target experience
 
@@ -41,17 +48,7 @@ this is a client-side controller. minecraft's own networking and interaction rul
 - fabric loom 1.17
 - fabric api 0.159.0+26.2
 - java 25
-- gradle 9.5.1
-
-## next layers
-
-- richer long-term memory
-- stronger navigation and recovery
-- broader recipe automation
-- chest and container management
-- equipment and resource planning
-- automatic session/world joining
-- cooperative task planning
+- mod menu 20.0.0
 
 ## source template
 
