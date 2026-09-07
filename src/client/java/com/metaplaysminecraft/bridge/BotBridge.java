@@ -2,6 +2,8 @@ package com.metaplaysminecraft.bridge;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.network.chat.Component;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,31 +20,36 @@ public final class BotBridge {
         if (player == null) return;
 
         if (process != null && process.isAlive()) {
-            stop(player);
+            stop(minecraft);
             return;
         }
 
-        var server = minecraft.getSingleplayerServer();
+        IntegratedServer server = minecraft.getSingleplayerServer();
         if (server == null) {
-            player.displayClientMessage(net.minecraft.network.chat.Component.literal("meta bot: open a singleplayer world first"), false);
+            message(minecraft, "meta bot: open a singleplayer world first");
             return;
         }
 
-        int port = server.getServerPort();
+        if (!server.isPublished()) {
+            message(minecraft, "meta bot: open your world to LAN first");
+            return;
+        }
+
+        int port = server.getPort();
         if (port <= 0) {
-            player.displayClientMessage(net.minecraft.network.chat.Component.literal("meta bot: open your world to LAN first"), false);
+            message(minecraft, "meta bot: couldn't determine the LAN port");
             return;
         }
 
         Path botDirectory = Path.of("bot").toAbsolutePath().normalize();
         Path entrypoint = botDirectory.resolve("index.js");
         if (!Files.isRegularFile(entrypoint)) {
-            player.displayClientMessage(net.minecraft.network.chat.Component.literal("meta bot: bot/index.js is missing"), false);
+            message(minecraft, "meta bot: bot/index.js is missing");
             return;
         }
 
         if (!STARTING.compareAndSet(false, true)) return;
-        player.displayClientMessage(net.minecraft.network.chat.Component.literal("meta bot: starting..."), false);
+        message(minecraft, "meta bot: starting...");
 
         Thread.startVirtualThread(() -> {
             try {
@@ -54,7 +61,7 @@ public final class BotBridge {
                             .inheritIO()
                             .start();
                     if (install.waitFor() != 0) {
-                        player.displayClientMessage(net.minecraft.network.chat.Component.literal("meta bot: npm install failed"), false);
+                        message(minecraft, "meta bot: npm install failed");
                         return;
                     }
                 }
@@ -68,19 +75,25 @@ public final class BotBridge {
                         "--control-port", "8765"
                 ).directory(botDirectory.toFile()).redirectErrorStream(true).inheritIO().start();
 
-                player.displayClientMessage(net.minecraft.network.chat.Component.literal("meta bot: connecting to localhost:" + port), false);
+                message(minecraft, "meta bot: connecting to localhost:" + port);
             } catch (Exception error) {
-                player.displayClientMessage(net.minecraft.network.chat.Component.literal("meta bot: " + error.getMessage()), false);
+                message(minecraft, "meta bot: " + error.getMessage());
             } finally {
                 STARTING.set(false);
             }
         });
     }
 
-    private static void stop(LocalPlayer player) {
+    private static void stop(Minecraft minecraft) {
         Process current = process;
         process = null;
         if (current != null && current.isAlive()) current.destroy();
-        player.displayClientMessage(net.minecraft.network.chat.Component.literal("meta bot: stopped"), false);
+        message(minecraft, "meta bot: stopped");
+    }
+
+    private static void message(Minecraft minecraft, String text) {
+        if (minecraft.gui != null && minecraft.gui.hud != null) {
+            minecraft.gui.hud.getChat().addClientSystemMessage(Component.literal(text));
+        }
     }
 }
