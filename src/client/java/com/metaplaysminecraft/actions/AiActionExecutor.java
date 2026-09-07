@@ -5,19 +5,14 @@ import com.metaplaysminecraft.combat.CombatTargetSelector;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.BedBlock;
-import net.minecraft.world.level.block.Blocks;
 
 public final class AiActionExecutor {
     private AiActionExecutor() {}
 
     public static void execute(Minecraft minecraft, AiAction action) {
         LocalPlayer player = minecraft.player;
-        if (player == null || !action.isKnown()) {
+        if (player == null || !ActionSafety.allow(player, action)) {
             clearMovement(minecraft);
             return;
         }
@@ -74,49 +69,38 @@ public final class AiActionExecutor {
 
     private static void sendChat(LocalPlayer player, String message) {
         String safe = message == null ? "" : message.strip();
-        if (!safe.isEmpty() && safe.length() <= 256) {
-            player.connection.sendChat(safe);
-        }
+        if (!safe.isEmpty() && safe.length() <= 256) player.connection.sendChat(safe);
     }
 
     private static void attackHostile(Minecraft minecraft, LocalPlayer player) {
         if (minecraft.gameMode == null) return;
         CombatTargetSelector.findHostileTarget(player).ifPresent(target -> {
-            if (CombatTargetSelector.isValidHostileTarget(player, target)) {
-                minecraft.gameMode.attack(player, target);
-            }
+            if (CombatTargetSelector.isValidHostileTarget(player, target)) minecraft.gameMode.attack(player, target);
         });
     }
 
     private static void holdAtBlock(Minecraft minecraft, LocalPlayer player, AiAction action, boolean breaking) {
         BlockPos pos = new BlockPos(action.x(), action.y(), action.z());
-        if (player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) > 25.0) {
-            clearMovement(minecraft);
-            return;
-        }
         aimAt(player, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
         minecraft.options.keyAttack.setDown(breaking && !player.level().getBlockState(pos).isAir());
-        minecraft.options.keyUse.setDown(!breaking && player.level().getBlockState(pos).isAir());
+        minecraft.options.keyUse.setDown(false);
     }
 
     private static void holdAtTarget(Minecraft minecraft, LocalPlayer player, AiAction action) {
         BlockPos pos = new BlockPos(action.x(), action.y(), action.z());
-        if (player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) > 25.0) {
-            clearMovement(minecraft);
-            return;
-        }
         aimAt(player, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+        minecraft.options.keyAttack.setDown(false);
         minecraft.options.keyUse.setDown(true);
     }
 
     private static void sleep(Minecraft minecraft, LocalPlayer player) {
         BlockPos bed = findNearestBed(player, 8);
-        if (bed != null) {
-            aimAt(player, bed.getX() + 0.5, bed.getY() + 0.5, bed.getZ() + 0.5);
-            minecraft.options.keyUse.setDown(true);
-        } else {
+        if (bed == null) {
             clearMovement(minecraft);
+            return;
         }
+        aimAt(player, bed.getX() + 0.5, bed.getY() + 0.5, bed.getZ() + 0.5);
+        minecraft.options.keyUse.setDown(true);
     }
 
     private static BlockPos findNearestBed(LocalPlayer player, int radius) {
@@ -136,9 +120,7 @@ public final class AiActionExecutor {
     }
 
     private static void select(LocalPlayer player, int slot) {
-        if (slot >= 0 && slot < 9) {
-            player.getInventory().selected = slot;
-        }
+        if (slot >= 0 && slot < 9) player.getInventory().selected = slot;
     }
 
     private static void aimAt(LocalPlayer player, double x, double y, double z) {
