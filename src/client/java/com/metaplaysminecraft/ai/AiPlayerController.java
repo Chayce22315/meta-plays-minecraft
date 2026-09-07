@@ -1,34 +1,83 @@
 package com.metaplaysminecraft.ai;
 
 import com.metaplaysminecraft.actions.AiActionExecutor;
+import com.metaplaysminecraft.actions.CraftingController;
+import com.metaplaysminecraft.navigation.NavigationController;
 import com.metaplaysminecraft.perception.PlayerPerception;
+import com.metaplaysminecraft.survival.SurvivalController;
 import net.minecraft.client.Minecraft;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 public final class AiPlayerController {
-    private static final int THINK_INTERVAL_TICKS = 10;
+    private static final int THINK_INTERVAL_TICKS = 8;
 
     private final LocalAiClient aiClient = new LocalAiClient();
-    private int ticksUntilThink;
-    private boolean thinking;
+    private final AtomicReference<AiAction> pendingAction = new AtomicReference<>(AiAction.noop());
     private AiAction currentAction = AiAction.noop();
+    private int ticksUntilThink;
+    private int actionTicksLeft;
+    private boolean thinking;
 
     public void tick(Minecraft minecraft) {
         if (minecraft.player == null || minecraft.level == null) {
-            AiActionExecutor.execute(minecraft, AiAction.noop());
+            AiActionExecutor.clearMovement(minecraft);
             return;
         }
 
-        AiActionExecutor.execute(minecraft, currentAction);
+        CraftingController.tick(minecraft);
+        SurvivalController.tick(minecraft);
 
-        if (--ticksUntilThink <= 0 && !thinking) {
+        if (CraftingController.isBusy()) {
+            return;
+        }
+
+        AiAction next = pendingAction.getAndSet(null);
+        if (next != null && next.isKnown()) {
+            currentAction = next;
+            actionTicksLeft = currentAction.safeDuration();
+        }
+
+        execute(minecraft);
+
+        actionTicksLeft--;
+        if (actionTicksLeft <= 0) {
+            currentAction = AiAction.noop();
+        }
+
+        if (--ticksUntilThink <= 0 && !thinking && minecraft.screen == null) {
             ticksUntilThink = THINK_INTERVAL_TICKS;
             thinking = true;
-            String perception = PlayerPerception.snapshot(minecraft);
-            aiClient.decide(perception).thenAccept(action -> {
-                currentAction = action;
-                thinking = false;
-            });
+            aiClient.decide(PlayerPerception.snapshot(minecraft))
+                    .whenComplete((action, error) -> {
+                        if (error != null || action == null) {
+                            pendingAction.set(AiAction.noop());
+                        } else {
+                            pendingAction.set(action);
+                        }
+                        thinking = false;
+                    });
         }
+    }
+
+    private void execute(Minecraft minecraft) {
+        AiAction action = currentAction;
+        if ("move".equals(action.type()) && action.target().startsWith("coords:")) {
+            String[] parts = action.target().substring("coords:".length()).split(",");
+            if (parts.length == 3) {
+                try {
+                    NavigationController.moveToward(
+                            minecraft,
+                            Double.parseDouble(parts[0]),
+                            Double.parseDouble(parts[1]),
+                            Double.parseDouble(parts[2]),
+                            action.sprint());
+                    return;
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        AiActionExecutor.execute(minecraft, action);
     }
 
     public AiAction currentAction() {
