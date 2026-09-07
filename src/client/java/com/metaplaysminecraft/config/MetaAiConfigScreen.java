@@ -36,15 +36,6 @@ public final class MetaAiConfigScreen extends Screen {
     private EditBox timeoutBox;
     private EditBox intervalBox;
 
-    private Button ollamaButton;
-    private Button openAiButton;
-    private Button localButton;
-    private Button aiToggle;
-    private Button realBotToggle;
-    private Button memoryToggle;
-    private Button craftingToggle;
-    private Button survivalToggle;
-    private Button combatToggle;
     private Button testButton;
 
     private String status = "ready";
@@ -69,14 +60,13 @@ public final class MetaAiConfigScreen extends Screen {
         int width = Math.min(440, this.width - 48);
 
         if (tab == Tab.PROVIDER) {
-            ollamaButton = addRenderableWidget(Button.builder(labelFor(MetaAiConfig.Provider.OLLAMA), b -> selectProvider(MetaAiConfig.Provider.OLLAMA)).bounds(left, top, 138, 22).build());
-            openAiButton = addRenderableWidget(Button.builder(labelFor(MetaAiConfig.Provider.OPENAI_COMPATIBLE), b -> selectProvider(MetaAiConfig.Provider.OPENAI_COMPATIBLE)).bounds(left + 150, top, 138, 22).build());
-            localButton = addRenderableWidget(Button.builder(labelFor(MetaAiConfig.Provider.LOCAL), b -> selectProvider(MetaAiConfig.Provider.LOCAL)).bounds(left + 300, top, 138, 22).build());
+            addRenderableWidget(Button.builder(labelFor(MetaAiConfig.Provider.OLLAMA), b -> selectProvider(MetaAiConfig.Provider.OLLAMA)).bounds(left, top, 138, 22).build());
+            addRenderableWidget(Button.builder(labelFor(MetaAiConfig.Provider.OPENAI_COMPATIBLE), b -> selectProvider(MetaAiConfig.Provider.OPENAI_COMPATIBLE)).bounds(left + 150, top, 138, 22).build());
+            addRenderableWidget(Button.builder(labelFor(MetaAiConfig.Provider.LOCAL), b -> selectProvider(MetaAiConfig.Provider.LOCAL)).bounds(left + 300, top, 138, 22).build());
 
             endpointBox = addBox("chat completions url", config.endpoint, left, top + 58, width);
             modelBox = addBox("model name", config.model, left, top + 116, width);
             apiKeyBox = addBox("api key (optional)", config.apiKey, left, top + 174, width);
-            apiKeyBox.setValue(config.apiKey);
             apiKeyBox.setMaxLength(512);
             apiKeyBox.setSuggestion("leave blank for local servers");
 
@@ -88,18 +78,18 @@ public final class MetaAiConfigScreen extends Screen {
                 status("defaults restored", 2400L);
             }).bounds(left + 150, top + 232, 138, 22).build());
         } else if (tab == Tab.BRAIN) {
-            aiToggle = addToggle("ai controller", config.aiEnabled, left, top, width, value -> config.aiEnabled = value);
-            realBotToggle = addToggle("real metabot bridge", config.useRealMetaBot, left, top + 34, width, value -> config.useRealMetaBot = value);
-            memoryToggle = addToggle("session memory", config.memoryEnabled, left, top + 68, width, value -> config.memoryEnabled = value);
-            craftingToggle = addToggle("autonomous crafting", config.autonomousCrafting, left, top + 102, width, value -> config.autonomousCrafting = value);
-            survivalToggle = addToggle("autonomous food / survival", config.autonomousSurvival, left, top + 136, width, value -> config.autonomousSurvival = value);
+            addToggle("ai controller", config.aiEnabled, left, top, width, value -> config.aiEnabled = value);
+            addToggle("real metabot bridge", config.useRealMetaBot, left, top + 34, width, value -> config.useRealMetaBot = value);
+            addToggle("session memory", config.memoryEnabled, left, top + 68, width, value -> config.memoryEnabled = value);
+            addToggle("autonomous crafting", config.autonomousCrafting, left, top + 102, width, value -> config.autonomousCrafting = value);
+            addToggle("autonomous food / survival", config.autonomousSurvival, left, top + 136, width, value -> config.autonomousSurvival = value);
 
             temperatureBox = addBox("temperature (0.0 - 2.0)", format(config.temperature), left, top + 186, width);
             maxTokensBox = addBox("max output tokens", Integer.toString(config.maxTokens), left, top + 244, width);
             timeoutBox = addBox("request timeout seconds", Integer.toString(config.requestTimeoutSeconds), left, top + 302, width);
             intervalBox = addBox("decision interval ticks", Integer.toString(config.decisionIntervalTicks), left, top + 360, width);
         } else {
-            combatToggle = addToggle("hostile mob combat", config.hostileMobCombat, left, top, width, value -> config.hostileMobCombat = value);
+            addToggle("hostile mob combat", config.hostileMobCombat, left, top, width, value -> config.hostileMobCombat = value);
             addRenderableWidget(Button.builder(Component.literal("player combat: permanently disabled"), b -> status("player targets are hard-blocked", 2600L)).bounds(left, top + 38, width, 22).build());
             addRenderableWidget(Button.builder(Component.literal("distance limits: enabled"), b -> status("actions keep conservative interaction ranges", 2600L)).bounds(left, top + 72, width, 22).build());
             addRenderableWidget(Button.builder(Component.literal("recovery: small jump / forward only"), b -> status("stuck recovery never teleports", 2600L)).bounds(left, top + 106, width, 22).build());
@@ -207,16 +197,14 @@ public final class MetaAiConfigScreen extends Screen {
         config.save();
         testButton.active = false;
         status("testing...", 0L);
-        CompletableFuture.supplyAsync(() -> LocalAiClient.testConnection())
-                .thenCompose(future -> future)
-                .whenComplete((success, error) -> Minecraft.getInstance().execute(() -> {
-                    if (testButton != null) testButton.active = true;
-                    if (error == null && Boolean.TRUE.equals(success)) {
-                        status("connection ok", 2600L);
-                    } else {
-                        status("connection failed", 3200L);
-                    }
-                }));
+        LocalAiClient.testConnection().whenComplete((success, error) -> Minecraft.getInstance().execute(() -> {
+            if (testButton != null) testButton.active = true;
+            if (error == null && Boolean.TRUE.equals(success)) {
+                status("connection ok", 2600L);
+            } else {
+                status("connection failed", 3200L);
+            }
+        }));
     }
 
     private void status(String message, long durationMs) {
