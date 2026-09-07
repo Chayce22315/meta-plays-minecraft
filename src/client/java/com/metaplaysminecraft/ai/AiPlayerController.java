@@ -2,6 +2,7 @@ package com.metaplaysminecraft.ai;
 
 import com.metaplaysminecraft.actions.AiActionExecutor;
 import com.metaplaysminecraft.actions.CraftingController;
+import com.metaplaysminecraft.config.MetaAiConfig;
 import com.metaplaysminecraft.navigation.NavigationController;
 import com.metaplaysminecraft.perception.PlayerPerception;
 import com.metaplaysminecraft.survival.SurvivalController;
@@ -10,8 +11,6 @@ import net.minecraft.client.Minecraft;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class AiPlayerController {
-    private static final int THINK_INTERVAL_TICKS = 8;
-
     private final LocalAiClient aiClient = new LocalAiClient();
     private final AiMemory memory = new AiMemory();
     private final StuckRecovery stuckRecovery = new StuckRecovery();
@@ -22,17 +21,16 @@ public final class AiPlayerController {
     private boolean thinking;
 
     public void tick(Minecraft minecraft) {
-        if (minecraft.player == null || minecraft.level == null) {
+        MetaAiConfig config = MetaAiConfig.get();
+        if (!config.aiEnabled || minecraft.player == null || minecraft.level == null) {
             AiActionExecutor.clearMovement(minecraft);
             return;
         }
 
-        CraftingController.tick(minecraft);
-        SurvivalController.tick(minecraft);
+        if (config.autonomousCrafting) CraftingController.tick(minecraft);
+        if (config.autonomousSurvival) SurvivalController.tick(minecraft);
 
-        if (CraftingController.isBusy()) {
-            return;
-        }
+        if (CraftingController.isBusy()) return;
 
         AiAction next = pendingAction.getAndSet(null);
         if (next != null && next.isKnown()) {
@@ -45,24 +43,21 @@ public final class AiPlayerController {
         stuckRecovery.tick(minecraft, currentAction, memory);
 
         actionTicksLeft--;
-        if (actionTicksLeft <= 0) {
-            currentAction = AiAction.noop();
-        }
+        if (actionTicksLeft <= 0) currentAction = AiAction.noop();
 
         if (--ticksUntilThink <= 0 && !thinking && minecraft.gui.screen() == null) {
-            ticksUntilThink = THINK_INTERVAL_TICKS;
+            ticksUntilThink = config.decisionIntervalTicks;
             thinking = true;
-            String context = PlayerPerception.snapshot(minecraft) + "\n" + memory.context();
-            aiClient.decide(context)
-                    .whenComplete((action, error) -> {
-                        if (error != null || action == null) {
-                            memory.remember("ai decision failed; waiting briefly");
-                            pendingAction.set(AiAction.noop());
-                        } else {
-                            pendingAction.set(action);
-                        }
-                        thinking = false;
-                    });
+            String context = PlayerPerception.snapshot(minecraft) + "\n" + (config.memoryEnabled ? memory.context() : "");
+            aiClient.decide(context).whenComplete((action, error) -> {
+                if (error != null || action == null) {
+                    memory.remember("ai decision failed; waiting briefly");
+                    pendingAction.set(AiAction.noop());
+                } else {
+                    pendingAction.set(action);
+                }
+                thinking = false;
+            });
         }
     }
 
@@ -72,8 +67,7 @@ public final class AiPlayerController {
             String[] parts = action.target().substring("coords:".length()).split(",");
             if (parts.length == 3) {
                 try {
-                    NavigationController.moveToward(
-                            minecraft,
+                    NavigationController.moveToward(minecraft,
                             Double.parseDouble(parts[0]),
                             Double.parseDouble(parts[1]),
                             Double.parseDouble(parts[2]),
