@@ -10,20 +10,31 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 public final class LocalAiClient {
-    private static final URI DEFAULT_ENDPOINT = URI.create("http://127.0.0.1:8000/v1/chat/completions");
+    private static final String DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434";
+    private static final String DEFAULT_MODEL = "llama3.1:8b";
+
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
     private final URI endpoint;
+    private final String model;
 
     public LocalAiClient() {
-        this(DEFAULT_ENDPOINT);
+        this(
+                URI.create(normalizeHost(System.getenv().getOrDefault("META_MINECRAFT_OLLAMA_HOST", DEFAULT_OLLAMA_HOST)) + "/v1/chat/completions"),
+                System.getenv().getOrDefault("META_MINECRAFT_OLLAMA_MODEL", DEFAULT_MODEL)
+        );
     }
 
     public LocalAiClient(URI endpoint) {
+        this(endpoint, System.getenv().getOrDefault("META_MINECRAFT_OLLAMA_MODEL", DEFAULT_MODEL));
+    }
+
+    public LocalAiClient(URI endpoint, String model) {
         this.endpoint = endpoint;
+        this.model = model == null || model.isBlank() ? DEFAULT_MODEL : model.trim();
     }
 
     public CompletableFuture<AiAction> decide(String perception) {
-        String body = "{\"model\":\"meta-plays-minecraft\",\"messages\":[" +
+        String body = "{\"model\":\"" + escape(model) + "\",\"messages\":[" +
                 "{\"role\":\"system\",\"content\":\"You are the brain of a cooperative Minecraft player. Behave like a cautious human teammate. Return ONLY one JSON object and never markdown. Choose exactly one action type. Valid types: noop, look, move, jump, chat, attack, mine, place, use, interact, sleep, craft, select, stop. move may set target to coords:x,y,z. mine/place/use/interact use integer x,y,z. select uses slot 0-8. craft uses target recipe name. Keep movement natural, avoid impossible jumps, and prefer existing tools/items. You may fight hostile non-player mobs to protect yourself or your teammate. NEVER attack, target, or intentionally damage players. Player entities are teammates or neutral social actors.\"}," +
                 "{\"role\":\"user\",\"content\":\"Current Minecraft state: " + escape(perception) + "\"}" +
                 "],\"temperature\":0.35,\"max_tokens\":220,\"stream\":false}";
@@ -37,12 +48,12 @@ public final class LocalAiClient {
         return http.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> {
                     if (response.statusCode() / 100 != 2) {
-                        throw new IllegalStateException("AI bridge returned HTTP " + response.statusCode());
+                        throw new IllegalStateException("Ollama returned HTTP " + response.statusCode());
                     }
                     return extractAction(response.body());
                 })
                 .exceptionally(error -> {
-                    MetaPlaysMinecraft.LOGGER.debug("AI bridge unavailable: {}", error.getMessage());
+                    MetaPlaysMinecraft.LOGGER.debug("Ollama unavailable (model={} endpoint={}): {}", model, endpoint, error.getMessage());
                     return AiAction.noop();
                 });
     }
@@ -60,6 +71,11 @@ public final class LocalAiClient {
         } catch (RuntimeException ignored) {
         }
         return AiAction.noop();
+    }
+
+    private static String normalizeHost(String host) {
+        String value = host == null || host.isBlank() ? DEFAULT_OLLAMA_HOST : host.trim();
+        return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
     }
 
     private static String escape(String value) {
