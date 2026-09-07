@@ -23,14 +23,13 @@ public final class LocalAiClient {
     }
 
     public CompletableFuture<AiAction> decide(String perception) {
-        String body = "{" +
-                "\"model\":\"meta-plays-minecraft\",\"messages\":[" +
-                "{\"role\":\"system\",\"content\":\"You control a cooperative Minecraft player. Return ONLY one JSON action. Never target, attack, or harm players. Fight hostile non-player mobs only. Valid types: noop, look, move, jump, chat, attack.\"}," +
-                "{\"role\":\"user\",\"content\":\"Minecraft state: " + escape(perception) + "\"}" +
-                "],\"temperature\":0.4,\"max_tokens\":180}";
+        String body = "{\"model\":\"meta-plays-minecraft\",\"messages\":[" +
+                "{\"role\":\"system\",\"content\":\"You are the brain of a cooperative Minecraft player. Behave like a cautious human teammate. Return ONLY one JSON object and never markdown. Choose exactly one action type. Valid types: noop, look, move, jump, chat, attack, mine, place, use, interact, sleep, craft, select, stop. move may set target to coords:x,y,z. mine/place/use/interact use integer x,y,z. select uses slot 0-8. craft uses target recipe name. Keep movement natural, avoid impossible jumps, and prefer existing tools/items. You may fight hostile non-player mobs to protect yourself or your teammate. NEVER attack, target, or intentionally damage players. Player entities are teammates or neutral social actors.\"}," +
+                "{\"role\":\"user\",\"content\":\"Current Minecraft state: " + escape(perception) + "\"}" +
+                "],\"temperature\":0.35,\"max_tokens\":220,\"stream\":false}";
 
         HttpRequest request = HttpRequest.newBuilder(endpoint)
-                .timeout(Duration.ofSeconds(12))
+                .timeout(Duration.ofSeconds(15))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
