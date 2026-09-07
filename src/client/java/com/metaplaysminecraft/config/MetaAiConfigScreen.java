@@ -9,12 +9,13 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.util.Locale;
-import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 public final class MetaAiConfigScreen extends Screen {
     private enum Tab {
         PROVIDER("provider"),
         BRAIN("brain"),
+        TUNING("tuning"),
         SAFETY("safety");
 
         private final String label;
@@ -37,7 +38,6 @@ public final class MetaAiConfigScreen extends Screen {
     private EditBox intervalBox;
 
     private Button testButton;
-
     private String status = "ready";
     private long statusUntil;
 
@@ -55,50 +55,107 @@ public final class MetaAiConfigScreen extends Screen {
     @Override
     protected void rebuildWidgets() {
         clearWidgets();
-        int left = Math.max(24, this.width / 2 - 220);
-        int top = 88;
-        int width = Math.min(440, this.width - 48);
+        endpointBox = null;
+        modelBox = null;
+        apiKeyBox = null;
+        temperatureBox = null;
+        maxTokensBox = null;
+        timeoutBox = null;
+        intervalBox = null;
+        testButton = null;
+
+        int panelWidth = Math.min(620, this.width - 32);
+        int left = Math.max(16, (this.width - panelWidth) / 2);
+        int navY = 47;
+        int gap = 6;
+        int navWidth = (panelWidth - (gap * 4)) / 5;
+
+        addRenderableWidget(Button.builder(Component.literal("provider"), b -> changeTab(Tab.PROVIDER))
+                .bounds(left, navY, navWidth, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("brain"), b -> changeTab(Tab.BRAIN))
+                .bounds(left + navWidth + gap, navY, navWidth, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("tuning"), b -> changeTab(Tab.TUNING))
+                .bounds(left + (navWidth + gap) * 2, navY, navWidth, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("safety"), b -> changeTab(Tab.SAFETY))
+                .bounds(left + (navWidth + gap) * 3, navY, navWidth, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("done"), b -> done())
+                .bounds(left + (navWidth + gap) * 4, navY, navWidth, 20).build());
+
+        int contentTop = 78;
+        int innerLeft = left + 12;
+        int innerWidth = panelWidth - 24;
+        int columnGap = 10;
+        int columnWidth = (innerWidth - columnGap) / 2;
 
         if (tab == Tab.PROVIDER) {
-            addRenderableWidget(Button.builder(labelFor(MetaAiConfig.Provider.OLLAMA), b -> selectProvider(MetaAiConfig.Provider.OLLAMA)).bounds(left, top, 138, 22).build());
-            addRenderableWidget(Button.builder(labelFor(MetaAiConfig.Provider.OPENAI_COMPATIBLE), b -> selectProvider(MetaAiConfig.Provider.OPENAI_COMPATIBLE)).bounds(left + 150, top, 138, 22).build());
-            addRenderableWidget(Button.builder(labelFor(MetaAiConfig.Provider.LOCAL), b -> selectProvider(MetaAiConfig.Provider.LOCAL)).bounds(left + 300, top, 138, 22).build());
+            int providerY = contentTop + 44;
+            int providerGap = 6;
+            int providerWidth = (panelWidth - providerGap * 2) / 3;
+            addRenderableWidget(Button.builder(labelFor(MetaAiConfig.Provider.OLLAMA), b -> selectProvider(MetaAiConfig.Provider.OLLAMA))
+                    .bounds(left, providerY, providerWidth, 20).build());
+            addRenderableWidget(Button.builder(labelFor(MetaAiConfig.Provider.OPENAI_COMPATIBLE), b -> selectProvider(MetaAiConfig.Provider.OPENAI_COMPATIBLE))
+                    .bounds(left + providerWidth + providerGap, providerY, providerWidth, 20).build());
+            addRenderableWidget(Button.builder(labelFor(MetaAiConfig.Provider.LOCAL), b -> selectProvider(MetaAiConfig.Provider.LOCAL))
+                    .bounds(left + (providerWidth + providerGap) * 2, providerY, providerWidth, 20).build());
 
-            endpointBox = addBox("chat completions url", config.endpoint, left, top + 58, width);
-            modelBox = addBox("model name", config.model, left, top + 116, width);
-            apiKeyBox = addBox("api key (optional)", config.apiKey, left, top + 174, width);
+            endpointBox = addBox("chat completions url", config.endpoint, innerLeft, providerY + 40, innerWidth);
+            modelBox = addBox("model name", config.model, innerLeft, providerY + 88, innerWidth);
+            apiKeyBox = addBox("api key (optional)", config.apiKey, innerLeft, providerY + 136, innerWidth);
             apiKeyBox.setMaxLength(512);
             apiKeyBox.setSuggestion("leave blank for local servers");
 
-            testButton = addRenderableWidget(Button.builder(Component.literal("test connection"), b -> testConnection()).bounds(left, top + 232, 138, 22).build());
+            int actionY = providerY + 188;
+            int firstActionWidth = Math.min(180, panelWidth / 2 - 5);
+            int secondActionX = left + panelWidth - firstActionWidth;
+            testButton = addRenderableWidget(Button.builder(Component.literal("test connection"), b -> testConnection())
+                    .bounds(left, actionY, firstActionWidth, 20).build());
             addRenderableWidget(Button.builder(Component.literal("reset defaults"), b -> {
                 config.reset();
                 config.save();
                 rebuildWidgets();
                 status("defaults restored", 2400L);
-            }).bounds(left + 150, top + 232, 138, 22).build());
+            }).bounds(secondActionX, actionY, firstActionWidth, 20).build());
         } else if (tab == Tab.BRAIN) {
-            addToggle("ai controller", config.aiEnabled, left, top, width, value -> config.aiEnabled = value);
-            addToggle("real metabot bridge", config.useRealMetaBot, left, top + 34, width, value -> config.useRealMetaBot = value);
-            addToggle("session memory", config.memoryEnabled, left, top + 68, width, value -> config.memoryEnabled = value);
-            addToggle("autonomous crafting", config.autonomousCrafting, left, top + 102, width, value -> config.autonomousCrafting = value);
-            addToggle("autonomous food / survival", config.autonomousSurvival, left, top + 136, width, value -> config.autonomousSurvival = value);
-
-            temperatureBox = addBox("temperature (0.0 - 2.0)", format(config.temperature), left, top + 186, width);
-            maxTokensBox = addBox("max output tokens", Integer.toString(config.maxTokens), left, top + 244, width);
-            timeoutBox = addBox("request timeout seconds", Integer.toString(config.requestTimeoutSeconds), left, top + 302, width);
-            intervalBox = addBox("decision interval ticks", Integer.toString(config.decisionIntervalTicks), left, top + 360, width);
+            int y = contentTop + 44;
+            y = addToggleGridRow("ai controller", config.aiEnabled, "real metabot bridge", config.useRealMetaBot,
+                    innerLeft, y, columnWidth, columnGap,
+                    value -> config.aiEnabled = value, value -> config.useRealMetaBot = value);
+            y = addToggleGridRow("session memory", config.memoryEnabled, "autonomous crafting", config.autonomousCrafting,
+                    innerLeft, y + 6, columnWidth, columnGap,
+                    value -> config.memoryEnabled = value, value -> config.autonomousCrafting = value);
+            addToggle("autonomous food / survival", config.autonomousSurvival, innerLeft, y + 6, innerWidth,
+                    value -> config.autonomousSurvival = value);
+        } else if (tab == Tab.TUNING) {
+            int y = contentTop + 46;
+            temperatureBox = addBox("temperature (0.0 - 2.0)", format(config.temperature), innerLeft, y, columnWidth);
+            maxTokensBox = addBox("max output tokens", Integer.toString(config.maxTokens), innerLeft + columnWidth + columnGap, y, columnWidth);
+            timeoutBox = addBox("request timeout seconds", Integer.toString(config.requestTimeoutSeconds), innerLeft, y + 50, columnWidth);
+            intervalBox = addBox("decision interval ticks", Integer.toString(config.decisionIntervalTicks), innerLeft + columnWidth + columnGap, y + 50, columnWidth);
         } else {
-            addToggle("hostile mob combat", config.hostileMobCombat, left, top, width, value -> config.hostileMobCombat = value);
-            addRenderableWidget(Button.builder(Component.literal("player combat: permanently disabled"), b -> status("player targets are hard-blocked", 2600L)).bounds(left, top + 38, width, 22).build());
-            addRenderableWidget(Button.builder(Component.literal("distance limits: enabled"), b -> status("actions keep conservative interaction ranges", 2600L)).bounds(left, top + 72, width, 22).build());
-            addRenderableWidget(Button.builder(Component.literal("recovery: small jump / forward only"), b -> status("stuck recovery never teleports", 2600L)).bounds(left, top + 106, width, 22).build());
+            int y = contentTop + 46;
+            addToggle("hostile mob combat", config.hostileMobCombat, innerLeft, y, innerWidth,
+                    value -> config.hostileMobCombat = value);
+            addRenderableWidget(Button.builder(Component.literal("player combat: permanently disabled"),
+                            b -> status("player targets are hard-blocked", 2600L))
+                    .bounds(innerLeft, y + 34, innerWidth, 20).build());
+            addRenderableWidget(Button.builder(Component.literal("distance limits: enabled"),
+                            b -> status("actions keep conservative interaction ranges", 2600L))
+                    .bounds(innerLeft, y + 62, innerWidth, 20).build());
+            addRenderableWidget(Button.builder(Component.literal("recovery: small jump / forward only"),
+                            b -> status("stuck recovery never teleports", 2600L))
+                    .bounds(innerLeft, y + 90, innerWidth, 20).build());
+            addRenderableWidget(Button.builder(Component.literal("hostile-only targeting"),
+                            b -> status("the target selector excludes player entities", 2600L))
+                    .bounds(innerLeft, y + 118, innerWidth, 20).build());
         }
+    }
 
-        addRenderableWidget(Button.builder(Component.literal("provider"), b -> changeTab(Tab.PROVIDER)).bounds(left, 53, 108, 22).build());
-        addRenderableWidget(Button.builder(Component.literal("brain"), b -> changeTab(Tab.BRAIN)).bounds(left + 114, 53, 108, 22).build());
-        addRenderableWidget(Button.builder(Component.literal("safety"), b -> changeTab(Tab.SAFETY)).bounds(left + 228, 53, 108, 22).build());
-        addRenderableWidget(Button.builder(Component.literal("done"), b -> done()).bounds(left + 342, 53, 98, 22).build());
+    private int addToggleGridRow(String leftLabel, boolean leftValue, String rightLabel, boolean rightValue,
+                                 int x, int y, int columnWidth, int gap,
+                                 Consumer<Boolean> leftSetter, Consumer<Boolean> rightSetter) {
+        addToggle(leftLabel, leftValue, x, y, columnWidth, leftSetter);
+        addToggle(rightLabel, rightValue, x + columnWidth + gap, y, columnWidth, rightSetter);
+        return y + 26;
     }
 
     private Component labelFor(MetaAiConfig.Provider provider) {
@@ -135,21 +192,20 @@ public final class MetaAiConfigScreen extends Screen {
     }
 
     private EditBox addBox(String label, String value, int x, int y, int width) {
-        EditBox box = new EditBox(this.font, x, y + 15, width, 20, Component.literal(label));
+        EditBox box = new EditBox(this.font, x, y + 14, width, 20, Component.literal(label));
         box.setValue(value == null ? "" : value);
         box.setMaxLength(2048);
         addRenderableWidget(box);
         return box;
     }
 
-    private Button addToggle(String label, boolean value, int x, int y, int width, java.util.function.Consumer<Boolean> setter) {
-        Button button = addRenderableWidget(Button.builder(toggleLabel(label, value), b -> {
+    private Button addToggle(String label, boolean value, int x, int y, int width, Consumer<Boolean> setter) {
+        return addRenderableWidget(Button.builder(toggleLabel(label, value), b -> {
             boolean next = !b.getMessage().getString().endsWith("on");
             setter.accept(next);
             b.setMessage(toggleLabel(label, next));
             config.save();
-        }).bounds(x, y, width, 26).build());
-        return button;
+        }).bounds(x, y, width, 20).build());
     }
 
     private Component toggleLabel(String label, boolean value) {
@@ -192,9 +248,15 @@ public final class MetaAiConfigScreen extends Screen {
         Minecraft.getInstance().gui.setScreen(parent);
     }
 
+    @Override
+    public void onClose() {
+        done();
+    }
+
     private void testConnection() {
         saveFields();
         config.save();
+        if (testButton == null) return;
         testButton.active = false;
         status("testing...", 0L);
         LocalAiClient.testConnection().whenComplete((success, error) -> Minecraft.getInstance().execute(() -> {
@@ -215,43 +277,88 @@ public final class MetaAiConfigScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+
+        int panelWidth = Math.min(620, this.width - 32);
+        int left = Math.max(16, (this.width - panelWidth) / 2);
+        int innerLeft = left + 12;
+        int innerWidth = panelWidth - 24;
+        int bottom = this.height - 24;
+        int contentTop = 78;
+
         graphics.fillGradient(0, 0, this.width, this.height, 0xFF10121A, 0xFF05060A);
+        graphics.fill(left - 8, 18, left + panelWidth + 8, bottom, 0xEE151923);
+        graphics.fill(left - 8, 18, left + panelWidth + 8, 21, 0xFF6B62FF);
+        graphics.text(this.font, "meta plays minecraft", left, 28, 0xFFFFFFFF, true);
+        graphics.text(this.font, "ai control center", left, 40, 0xFF9CA3B8);
 
-        int left = Math.max(24, this.width / 2 - 220);
-        int width = Math.min(440, this.width - 48);
+        String provider = switch (config.provider) {
+            case OLLAMA -> "ollama";
+            case OPENAI_COMPATIBLE -> "openai compatible";
+            case LOCAL -> "local";
+        };
+        String summary = provider + "  •  " + (config.aiEnabled ? "ai on" : "ai off")
+                + "  •  " + (config.useRealMetaBot ? "metabot on" : "metabot off");
+        graphics.text(this.font, summary, left + panelWidth - this.font.width(summary), 29, 0xFF7C86FF);
 
-        graphics.fill(left - 14, 28, left + width + 14, this.height - 28, 0xEE151923);
-        graphics.fill(left - 14, 28, left + width + 14, 31, 0xFF6B62FF);
-        graphics.text(this.font, "meta plays minecraft", left, 37, 0xFFFFFFFF, true);
-        graphics.text(this.font, "ai control center", left, 52, 0xFF9CA3B8);
-        graphics.text(this.font, tab.label, left + width - this.font.width(tab.label), 38, 0xFF7C86FF);
+        drawSection(graphics, tab, contentTop, innerLeft, innerWidth);
 
         if (tab == Tab.PROVIDER) {
-            drawSection(graphics, "connection", "choose what brain should receive the world state", left, 78, width);
-            drawLabel(graphics, "provider", left, 101);
-            drawLabel(graphics, "chat completions url", left, 143);
-            drawLabel(graphics, "model name", left, 201);
-            drawLabel(graphics, "api key (optional)", left, 259);
+            graphics.text(this.font, "provider", innerLeft, 101, 0xFFAEB6CA);
+            graphics.text(this.font, "chat completions url", innerLeft, 137, 0xFFAEB6CA);
+            graphics.text(this.font, "model name", innerLeft, 185, 0xFFAEB6CA);
+            graphics.text(this.font, "api key (optional)", innerLeft, 233, 0xFFAEB6CA);
+            drawHint(graphics, "provider controls the endpoint family; fields remain editable", innerLeft, 298, innerWidth);
         } else if (tab == Tab.BRAIN) {
-            drawSection(graphics, "behavior", "tune how often and how boldly the ai thinks", left, 78, width);
-            drawLabel(graphics, "generation", left, 278);
-            drawLabel(graphics, "timing", left, 394);
+            drawHint(graphics, "changes save immediately and are read during gameplay", innerLeft, 247, innerWidth);
+        } else if (tab == Tab.TUNING) {
+            drawCard(graphics, "temperature", "lower = steadier, higher = more varied", innerLeft, 229, innerWidth / 2 - 5);
+            drawCard(graphics, "max tokens", "limits the size of each ai response", innerLeft + innerWidth / 2 + 5, 229, innerWidth / 2 - 5);
+            drawCard(graphics, "timeout", "max wait before a provider request fails", innerLeft, 276, innerWidth / 2 - 5);
+            drawCard(graphics, "decision interval", "smaller = faster reactions and more requests", innerLeft + innerWidth / 2 + 5, 276, innerWidth / 2 - 5);
         } else {
-            drawSection(graphics, "guardrails", "safety rules are intentionally conservative", left, 78, width);
+            drawHint(graphics, "guardrails are enforced by the action layer, not only the ai prompt", innerLeft, 250, innerWidth);
         }
 
         if (statusUntil > System.currentTimeMillis()) {
-            graphics.text(this.font, status, left, this.height - 47, 0xFFB8C0D8);
+            graphics.text(this.font, status, left, bottom + 6 - this.font.lineHeight, 0xFFB8C0D8);
         }
     }
 
-    private void drawSection(GuiGraphicsExtractor graphics, String title, String subtitle, int x, int y, int width) {
-        graphics.fill(x - 2, y, x + width + 2, y + 39, 0xFF1B1F2D);
-        graphics.text(this.font, title, x + 8, y + 7, 0xFFEDEFFF, true);
-        graphics.text(this.font, subtitle, x + 8, y + 21, 0xFF8D95AA);
+    private void drawSection(GuiGraphicsExtractor graphics, Tab tab, int y, int x, int width) {
+        String title = switch (tab) {
+            case PROVIDER -> "connection";
+            case BRAIN -> "behavior";
+            case TUNING -> "generation & timing";
+            case SAFETY -> "guardrails";
+        };
+        String subtitle = switch (tab) {
+            case PROVIDER -> "configure the ai service and verify the connection";
+            case BRAIN -> "control the autonomous systems that drive the player";
+            case TUNING -> "control how often the brain thinks and how requests behave";
+            case SAFETY -> "conservative rules that keep the player from attacking people";
+        };
+        graphics.fill(x, y, x + width, y + 34, 0xFF1B1F2D);
+        graphics.text(this.font, title, x + 8, y + 6, 0xFFEDEFFF, true);
+        graphics.text(this.font, fitText(subtitle, width - 16), x + 8, y + 19, 0xFF8D95AA);
     }
 
-    private void drawLabel(GuiGraphicsExtractor graphics, String label, int x, int y) {
-        graphics.text(this.font, label, x, y, 0xFFAEB6CA);
+    private void drawHint(GuiGraphicsExtractor graphics, String text, int x, int y, int width) {
+        graphics.fill(x, y, x + width, y + 22, 0xFF1B1F2D);
+        graphics.text(this.font, fitText(text, width - 12), x + 6, y + 7, 0xFF8D95AA);
+    }
+
+    private void drawCard(GuiGraphicsExtractor graphics, String title, String subtitle, int x, int y, int width) {
+        graphics.fill(x, y, x + width, y + 40, 0xFF1B1F2D);
+        graphics.text(this.font, title, x + 7, y + 6, 0xFFEDEFFF, true);
+        graphics.text(this.font, fitText(subtitle, width - 14), x + 7, y + 20, 0xFF8D95AA);
+    }
+
+    private String fitText(String text, int width) {
+        if (this.font.width(text) <= width) return text;
+        String clipped = text;
+        while (clipped.length() > 4 && this.font.width(clipped + "...") > width) {
+            clipped = clipped.substring(0, clipped.length() - 1);
+        }
+        return clipped + "...";
     }
 }
