@@ -120,7 +120,7 @@ public final class AiActionExecutor {
     }
 
     private static void select(LocalPlayer player, int slot) {
-        if (slot >= 0 && slot < 9) player.getInventory().selected = slot;
+        if (slot >= 0 && slot < 9) player.getInventory().setSelectedSlot(slot);
     }
 
     private static void aimAt(LocalPlayer player, double x, double y, double z) {
