@@ -18,6 +18,9 @@
     ],
     "client": [
       "com.metaplaysminecraft.MetaPlaysMinecraftClient"
+    ],
+    "modmenu": [
+      "com.metaplaysminecraft.config.MetaAiModMenu"
     ]
   },
   "depends": {
@@ -25,5 +28,8 @@
     "minecraft": "~26.2",
     "java": ">=25",
     "fabric-api": "*"
+  },
+  "recommends": {
+    "modmenu": ">=20.0.0"
   }
 }
