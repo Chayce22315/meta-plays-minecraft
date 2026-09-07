@@ -16,15 +16,34 @@ fabric client mod for minecraft java 26.2 that lets a local ai model control a c
 - core crafting automation for planks, sticks, crafting tables, chests, furnaces and torches
 - simple waypoint movement with obstacle-aware jumping
 - action validation and distance limits
-- local openai-compatible model bridge
+- local ollama model bridge
+- real second-client metabot world connection
 
-## model bridge
+## ollama model bridge
 
-by default the mod talks to:
+by default the mod talks to ollama through its local openai-compatible api:
 
-`http://127.0.0.1:8000/v1/chat/completions`
+`http://127.0.0.1:11434/v1/chat/completions`
 
-run your local model server with an openai-compatible api and make its model name available as `meta-plays-minecraft`.
+The default model is `llama3.1:8b`.
+
+make sure ollama is running and the model you choose is available locally. the mod does not download models automatically.
+
+to use a different model, set:
+
+`META_MINECRAFT_OLLAMA_MODEL=<your-model-name>`
+
+before starting minecraft.
+
+to use a different ollama host, set:
+
+`META_MINECRAFT_OLLAMA_HOST=http://127.0.0.1:11434`
+
+## real metabot connection
+
+open your singleplayer world to lan, then use the mod's metabot toggle to start the separate player connection.
+
+the ai brain can then produce structured actions which are forwarded to the real metabot client.
 
 ## target experience
 
