@@ -5,7 +5,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -31,35 +30,18 @@ public final class BotBridge {
     public static void toggle(Minecraft minecraft) {
         LocalPlayer player = minecraft.player;
         if (player == null) return;
-
-        if (isRunning()) {
-            stop(player);
-            return;
-        }
+        if (isRunning()) { stop(minecraft); return; }
 
         var server = minecraft.getSingleplayerServer();
-        if (server == null) {
-            message(minecraft, "meta bot: open a singleplayer world first");
-            return;
-        }
-        if (!server.isPublished()) {
-            message(minecraft, "meta bot: open your world to LAN first");
-            return;
-        }
+        if (server == null) { message(minecraft, "meta bot: open a singleplayer world first"); return; }
+        if (!server.isPublished()) { message(minecraft, "meta bot: open your world to LAN first"); return; }
 
         int port = server.getPort();
-        if (port <= 0) {
-            message(minecraft, "meta bot: no LAN port is available");
-            return;
-        }
+        if (port <= 0) { message(minecraft, "meta bot: no LAN port is available"); return; }
 
         Path botDirectory = Path.of("bot").toAbsolutePath().normalize();
         Path entrypoint = botDirectory.resolve("index.js");
-        if (!Files.isRegularFile(entrypoint)) {
-            message(minecraft, "meta bot: bot/index.js is missing");
-            return;
-        }
-
+        if (!Files.isRegularFile(entrypoint)) { message(minecraft, "meta bot: bot/index.js is missing"); return; }
         if (!STARTING.compareAndSet(false, true)) return;
         message(minecraft, "meta bot: starting...");
 
@@ -68,49 +50,31 @@ public final class BotBridge {
                 Path nodeModules = botDirectory.resolve("node_modules");
                 if (!Files.isDirectory(nodeModules)) {
                     Process install = new ProcessBuilder("npm", "install", "--no-fund", "--no-audit")
-                            .directory(botDirectory.toFile())
-                            .redirectErrorStream(true)
-                            .inheritIO()
-                            .start();
-                    if (install.waitFor() != 0) {
-                        message(minecraft, "meta bot: npm install failed");
-                        return;
-                    }
+                            .directory(botDirectory.toFile()).redirectErrorStream(true).inheritIO().start();
+                    if (install.waitFor() != 0) { message(minecraft, "meta bot: npm install failed"); return; }
                 }
-
-                process = new ProcessBuilder(
-                        "node", entrypoint.toString(),
-                        "--host", "127.0.0.1",
-                        "--port", Integer.toString(port),
-                        "--username", "MetaBot",
-                        "--control-port", "8765"
-                ).directory(botDirectory.toFile()).redirectErrorStream(true).inheritIO().start();
+                process = new ProcessBuilder("node", entrypoint.toString(), "--host", "127.0.0.1", "--port", Integer.toString(port), "--username", "MetaBot", "--control-port", "8765")
+                        .directory(botDirectory.toFile()).redirectErrorStream(true).inheritIO().start();
                 message(minecraft, "meta bot: connecting to localhost:" + port);
             } catch (Exception error) {
                 message(minecraft, "meta bot: " + safeMessage(error));
-            } finally {
-                STARTING.set(false);
-            }
+            } finally { STARTING.set(false); }
         });
     }
 
     public static void sendAction(AiAction action) {
         if (!isRunning() || action == null) return;
-        String json = actionJson(action);
         HttpRequest request = HttpRequest.newBuilder(ACTION_ENDPOINT)
-                .timeout(Duration.ofSeconds(2))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(json))
-                .build();
-        HTTP.sendAsync(request, HttpResponse.BodyHandlers.discarding())
-                .exceptionally(error -> null);
+                .timeout(Duration.ofSeconds(2)).header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(actionJson(action))).build();
+        HTTP.sendAsync(request, HttpResponse.BodyHandlers.discarding()).exceptionally(error -> null);
     }
 
-    private static void stop(LocalPlayer player) {
+    private static void stop(Minecraft minecraft) {
         Process current = process;
         process = null;
         if (current != null && current.isAlive()) current.destroy();
-        player.displayClientMessage(Component.literal("meta bot: stopped"), false);
+        message(minecraft, "meta bot: stopped");
     }
 
     private static void message(Minecraft minecraft, String text) {
@@ -122,23 +86,11 @@ public final class BotBridge {
     }
 
     private static String actionJson(AiAction action) {
-        String type = escape(action.type());
-        String target = escape(action.target());
-        String message = escape(action.message());
-        return "{\"type\":\"" + type + "\",\"target\":\"" + target + "\",\"yaw\":" + action.yaw()
-                + ",\"pitch\":" + action.pitch()
-                + ",\"forward\":" + (action.forward() > 0.15f)
-                + ",\"back\":" + (action.forward() < -0.15f)
-                + ",\"left\":" + (action.sideways() < -0.15f)
-                + ",\"right\":" + (action.sideways() > 0.15f)
-                + ",\"jump\":" + action.jump()
-                + ",\"sprint\":" + action.sprint()
-                + ",\"sneak\":" + action.crouch()
-                + ",\"slot\":" + action.slot()
-                + ",\"x\":" + action.x()
-                + ",\"y\":" + action.y()
-                + ",\"z\":" + action.z()
-                + ",\"message\":\"" + message + "\"}";
+        return "{\"type\":\"" + escape(action.type()) + "\",\"target\":\"" + escape(action.target()) + "\",\"yaw\":" + action.yaw()
+                + ",\"pitch\":" + action.pitch() + ",\"forward\":" + (action.forward() > 0.15f) + ",\"back\":" + (action.forward() < -0.15f)
+                + ",\"left\":" + (action.sideways() < -0.15f) + ",\"right\":" + (action.sideways() > 0.15f) + ",\"jump\":" + action.jump()
+                + ",\"sprint\":" + action.sprint() + ",\"sneak\":" + action.crouch() + ",\"slot\":" + action.slot() + ",\"x\":" + action.x()
+                + ",\"y\":" + action.y() + ",\"z\":" + action.z() + ",\"message\":\"" + escape(action.message()) + "\"}";
     }
 
     private static String escape(String value) {
