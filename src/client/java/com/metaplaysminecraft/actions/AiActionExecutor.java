@@ -2,6 +2,7 @@ package com.metaplaysminecraft.actions;
 
 import com.metaplaysminecraft.ai.AiAction;
 import com.metaplaysminecraft.combat.CombatTargetSelector;
+import com.metaplaysminecraft.config.MetaAiConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -26,7 +27,10 @@ public final class AiActionExecutor {
                 minecraft.options.keyJump.setDown(true);
             }
             case "chat" -> sendChat(player, action.message());
-            case "attack" -> attackHostile(minecraft, player);
+            case "attack" -> {
+                if (MetaAiConfig.get().hostileMobCombat) attackHostile(minecraft, player);
+                else clearMovement(minecraft);
+            }
             case "mine" -> holdAtBlock(minecraft, player, action, true);
             case "place", "use", "interact" -> holdAtTarget(minecraft, player, action);
             case "sleep" -> sleep(minecraft, player);
