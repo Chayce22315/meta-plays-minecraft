@@ -2,7 +2,7 @@ package com.metaplaysminecraft.config;
 
 import com.metaplaysminecraft.ai.LocalAiClient;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -15,8 +15,7 @@ public final class MetaAiConfigScreen extends Screen {
     private enum Tab {
         PROVIDER("provider"),
         BRAIN("brain"),
-        SAFETY("safety")
-        ;
+        SAFETY("safety");
 
         private final String label;
 
@@ -62,7 +61,8 @@ public final class MetaAiConfigScreen extends Screen {
         rebuildWidgets();
     }
 
-    private void rebuildWidgets() {
+    @Override
+    protected void rebuildWidgets() {
         clearWidgets();
         int left = Math.max(24, this.width / 2 - 220);
         int top = 88;
@@ -78,7 +78,7 @@ public final class MetaAiConfigScreen extends Screen {
             apiKeyBox = addBox("api key (optional)", config.apiKey, left, top + 174, width);
             apiKeyBox.setValue(config.apiKey);
             apiKeyBox.setMaxLength(512);
-            apiKeyBox.setSuggestion(Component.literal("leave blank for local servers"));
+            apiKeyBox.setSuggestion("leave blank for local servers");
 
             testButton = addRenderableWidget(Button.builder(Component.literal("test connection"), b -> testConnection()).bounds(left, top + 232, 138, 22).build());
             addRenderableWidget(Button.builder(Component.literal("reset defaults"), b -> {
@@ -111,13 +111,13 @@ public final class MetaAiConfigScreen extends Screen {
         addRenderableWidget(Button.builder(Component.literal("done"), b -> done()).bounds(left + 342, 53, 98, 22).build());
     }
 
-    private String labelFor(MetaAiConfig.Provider provider) {
+    private Component labelFor(MetaAiConfig.Provider provider) {
         String title = switch (provider) {
             case OLLAMA -> "ollama";
             case OPENAI_COMPATIBLE -> "openai compatible";
             case LOCAL -> "local server";
         };
-        return config.provider == provider ? "✓ " + title : title;
+        return Component.literal(config.provider == provider ? "✓ " + title : title);
     }
 
     private void selectProvider(MetaAiConfig.Provider provider) {
@@ -162,8 +162,8 @@ public final class MetaAiConfigScreen extends Screen {
         return button;
     }
 
-    private String toggleLabel(String label, boolean value) {
-        return label + "  •  " + (value ? "on" : "off");
+    private Component toggleLabel(String label, boolean value) {
+        return Component.literal(label + "  •  " + (value ? "on" : "off"));
     }
 
     private void saveFields() {
@@ -199,7 +199,7 @@ public final class MetaAiConfigScreen extends Screen {
     private void done() {
         saveFields();
         config.save();
-        Minecraft.getInstance().setScreen(parent);
+        Minecraft.getInstance().gui.setScreen(parent);
     }
 
     private void testConnection() {
@@ -207,7 +207,8 @@ public final class MetaAiConfigScreen extends Screen {
         config.save();
         testButton.active = false;
         status("testing...", 0L);
-        CompletableFuture.runAsync(() -> LocalAiClient.testConnection())
+        CompletableFuture.supplyAsync(() -> LocalAiClient.testConnection())
+                .thenCompose(future -> future)
                 .whenComplete((success, error) -> Minecraft.getInstance().execute(() -> {
                     if (testButton != null) testButton.active = true;
                     if (error == null && Boolean.TRUE.equals(success)) {
@@ -224,7 +225,8 @@ public final class MetaAiConfigScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         graphics.fillGradient(0, 0, this.width, this.height, 0xFF10121A, 0xFF05060A);
 
         int left = Math.max(24, this.width / 2 - 220);
@@ -232,9 +234,9 @@ public final class MetaAiConfigScreen extends Screen {
 
         graphics.fill(left - 14, 28, left + width + 14, this.height - 28, 0xEE151923);
         graphics.fill(left - 14, 28, left + width + 14, 31, 0xFF6B62FF);
-        graphics.drawString(this.font, "meta plays minecraft", left, 37, 0xFFFFFFFF, true);
-        graphics.drawString(this.font, "ai control center", left, 52, 0xFF9CA3B8);
-        graphics.drawString(this.font, tab.label, left + width - this.font.width(tab.label), 38, 0xFF7C86FF);
+        graphics.text(this.font, "meta plays minecraft", left, 37, 0xFFFFFFFF, true);
+        graphics.text(this.font, "ai control center", left, 52, 0xFF9CA3B8);
+        graphics.text(this.font, tab.label, left + width - this.font.width(tab.label), 38, 0xFF7C86FF);
 
         if (tab == Tab.PROVIDER) {
             drawSection(graphics, "connection", "choose what brain should receive the world state", left, 78, width);
@@ -251,18 +253,17 @@ public final class MetaAiConfigScreen extends Screen {
         }
 
         if (statusUntil > System.currentTimeMillis()) {
-            graphics.drawString(this.font, status, left, this.height - 47, 0xFFB8C0D8);
+            graphics.text(this.font, status, left, this.height - 47, 0xFFB8C0D8);
         }
-        super.render(graphics, mouseX, mouseY, partialTick);
     }
 
-    private void drawSection(GuiGraphics graphics, String title, String subtitle, int x, int y, int width) {
+    private void drawSection(GuiGraphicsExtractor graphics, String title, String subtitle, int x, int y, int width) {
         graphics.fill(x - 2, y, x + width + 2, y + 39, 0xFF1B1F2D);
-        graphics.drawString(this.font, title, x + 8, y + 7, 0xFFEDEFFF, true);
-        graphics.drawString(this.font, subtitle, x + 8, y + 21, 0xFF8D95AA);
+        graphics.text(this.font, title, x + 8, y + 7, 0xFFEDEFFF, true);
+        graphics.text(this.font, subtitle, x + 8, y + 21, 0xFF8D95AA);
     }
 
-    private void drawLabel(GuiGraphics graphics, String label, int x, int y) {
-        graphics.drawString(this.font, label, x, y, 0xFFAEB6CA);
+    private void drawLabel(GuiGraphicsExtractor graphics, String label, int x, int y) {
+        graphics.text(this.font, label, x, y, 0xFFAEB6CA);
     }
 }
