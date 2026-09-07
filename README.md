@@ -16,34 +16,22 @@ fabric client mod for minecraft java 26.2 that lets a local ai model control a c
 - core crafting automation for planks, sticks, crafting tables, chests, furnaces and torches
 - simple waypoint movement with obstacle-aware jumping
 - action validation and distance limits
-- local ollama model bridge
-- real second-client metabot world connection
+- local openai-compatible model bridge
+- in-game configuration through mod menu
 
-## ollama model bridge
+## ai configuration
 
-by default the mod talks to ollama through its local openai-compatible api:
+open **mod menu -> meta plays minecraft -> configure**.
 
-`http://127.0.0.1:11434/v1/chat/completions`
+### providers
 
-The default model is `llama3.1:8b`.
+- **ollama**: `http://127.0.0.1:11434/v1/chat/completions`
+- **openai compatible**: any compatible chat-completions endpoint
+- **local server**: useful for llama.cpp, vllm, lm studio, or another local compatible server
 
-make sure ollama is running and the model you choose is available locally. the mod does not download models automatically.
+all three providers let you edit the endpoint, model, optional api key, generation settings, request timeout, and decision interval.
 
-to use a different model, set:
-
-`META_MINECRAFT_OLLAMA_MODEL=<your-model-name>`
-
-before starting minecraft.
-
-to use a different ollama host, set:
-
-`META_MINECRAFT_OLLAMA_HOST=http://127.0.0.1:11434`
-
-## real metabot connection
-
-open your singleplayer world to lan, then use the mod's metabot toggle to start the separate player connection.
-
-the ai brain can then produce structured actions which are forwarded to the real metabot client.
+configuration is saved to `config/meta_plays_minecraft.json`.
 
 ## target experience
 
@@ -60,17 +48,7 @@ this is a client-side controller. minecraft's own networking and interaction rul
 - fabric loom 1.17
 - fabric api 0.159.0+26.2
 - java 25
-- gradle 9.5.1
-
-## next layers
-
-- richer long-term memory
-- stronger navigation and recovery
-- broader recipe automation
-- chest and container management
-- equipment and resource planning
-- automatic session/world joining
-- cooperative task planning
+- mod menu 20.0.0
 
 ## source template
 
