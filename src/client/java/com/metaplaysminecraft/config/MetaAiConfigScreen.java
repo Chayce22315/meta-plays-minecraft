@@ -82,15 +82,12 @@ public final class MetaAiConfigScreen extends Screen {
                 .bounds(left + (navWidth + gap) * 4, navY, navWidth, 20).build());
 
         int contentTop = 78;
-        int contentWidth = panelWidth;
         int innerLeft = left + 12;
-        int innerWidth = contentWidth - 24;
+        int innerWidth = panelWidth - 24;
         int columnGap = 10;
         int columnWidth = (innerWidth - columnGap) / 2;
 
         if (tab == Tab.PROVIDER) {
-            drawlessSectionButton("connection", "configure the ai service and verify it works", left, contentTop, panelWidth);
-
             int providerY = contentTop + 44;
             int providerGap = 6;
             int providerWidth = (panelWidth - providerGap * 2) / 3;
@@ -108,20 +105,17 @@ public final class MetaAiConfigScreen extends Screen {
             apiKeyBox.setSuggestion("leave blank for local servers");
 
             int actionY = providerY + 188;
+            int firstActionWidth = Math.min(180, panelWidth / 2 - 5);
+            int secondActionX = left + panelWidth - firstActionWidth;
             testButton = addRenderableWidget(Button.builder(Component.literal("test connection"), b -> testConnection())
-                    .bounds(left, actionY, Math.min(180, panelWidth / 2 - 5), 20).build());
+                    .bounds(left, actionY, firstActionWidth, 20).build());
             addRenderableWidget(Button.builder(Component.literal("reset defaults"), b -> {
                 config.reset();
                 config.save();
                 rebuildWidgets();
                 status("defaults restored", 2400L);
-            }).bounds(left + Math.min(190, panelWidth / 2 + 5), actionY,
-                    Math.min(180, panelWidth / 2 - 5), 20).build());
-
-            drawlessHint("provider controls the endpoint family; the fields below stay editable", innerLeft, actionY + 29, innerWidth);
+            }).bounds(secondActionX, actionY, firstActionWidth, 20).build());
         } else if (tab == Tab.BRAIN) {
-            drawlessSectionButton("behavior", "turn major autonomous systems on or off", left, contentTop, panelWidth);
-
             int y = contentTop + 44;
             y = addToggleGridRow("ai controller", config.aiEnabled, "real metabot bridge", config.useRealMetaBot,
                     innerLeft, y, columnWidth, columnGap,
@@ -131,24 +125,13 @@ public final class MetaAiConfigScreen extends Screen {
                     value -> config.memoryEnabled = value, value -> config.autonomousCrafting = value);
             addToggle("autonomous food / survival", config.autonomousSurvival, innerLeft, y + 6, innerWidth,
                     value -> config.autonomousSurvival = value);
-
-            drawlessHint("changes save immediately, and the ai controller reads them during gameplay", innerLeft, y + 39, innerWidth);
         } else if (tab == Tab.TUNING) {
-            drawlessSectionButton("generation & timing", "control how frequently the brain thinks and how long requests can run", left, contentTop, panelWidth);
-
             int y = contentTop + 46;
             temperatureBox = addBox("temperature (0.0 - 2.0)", format(config.temperature), innerLeft, y, columnWidth);
             maxTokensBox = addBox("max output tokens", Integer.toString(config.maxTokens), innerLeft + columnWidth + columnGap, y, columnWidth);
             timeoutBox = addBox("request timeout seconds", Integer.toString(config.requestTimeoutSeconds), innerLeft, y + 50, columnWidth);
             intervalBox = addBox("decision interval ticks", Integer.toString(config.decisionIntervalTicks), innerLeft + columnWidth + columnGap, y + 50, columnWidth);
-
-            drawlessCard("temperature", "lower values are steadier; higher values are more varied", innerLeft, y + 105, columnWidth);
-            drawlessCard("max tokens", "caps the size of each ai decision response", innerLeft + columnWidth + columnGap, y + 105, columnWidth);
-            drawlessCard("timeout", "how long a provider request may take before failing", innerLeft, y + 166, columnWidth);
-            drawlessCard("decision interval", "smaller values react faster but create more requests", innerLeft + columnWidth + columnGap, y + 166, columnWidth);
         } else {
-            drawlessSectionButton("guardrails", "safety rules stay conservative even when options are enabled", left, contentTop, panelWidth);
-
             int y = contentTop + 46;
             addToggle("hostile mob combat", config.hostileMobCombat, innerLeft, y, innerWidth,
                     value -> config.hostileMobCombat = value);
@@ -164,14 +147,7 @@ public final class MetaAiConfigScreen extends Screen {
             addRenderableWidget(Button.builder(Component.literal("hostile-only targeting"),
                             b -> status("the target selector excludes player entities", 2600L))
                     .bounds(innerLeft, y + 118, innerWidth, 20).build());
-
-            drawlessHint("these guardrails are enforced by the action layer, not just the ai prompt", innerLeft, y + 151, innerWidth);
         }
-    }
-
-    private void drawlessSectionButton(String title, String subtitle, int x, int y, int width) {
-        addRenderableWidget(Button.builder(Component.literal(title + "  •  " + subtitle), b -> status(title + " section", 1200L))
-                .bounds(x, y, width, 26).build());
     }
 
     private int addToggleGridRow(String leftLabel, boolean leftValue, String rightLabel, boolean rightValue,
@@ -229,7 +205,7 @@ public final class MetaAiConfigScreen extends Screen {
             setter.accept(next);
             b.setMessage(toggleLabel(label, next));
             config.save();
-        }).bounds(x, y, width, 26).build());
+        }).bounds(x, y, width, 20).build());
     }
 
     private Component toggleLabel(String label, boolean value) {
@@ -272,13 +248,9 @@ public final class MetaAiConfigScreen extends Screen {
         Minecraft.getInstance().gui.setScreen(parent);
     }
 
-    private void onCloseToParent() {
-        done();
-    }
-
     @Override
     public void onClose() {
-        onCloseToParent();
+        done();
     }
 
     private void testConnection() {
@@ -306,12 +278,14 @@ public final class MetaAiConfigScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
 
-        graphics.fillGradient(0, 0, this.width, this.height, 0xFF10121A, 0xFF05060A);
-
         int panelWidth = Math.min(620, this.width - 32);
         int left = Math.max(16, (this.width - panelWidth) / 2);
+        int innerLeft = left + 12;
+        int innerWidth = panelWidth - 24;
         int bottom = this.height - 24;
+        int contentTop = 78;
 
+        graphics.fillGradient(0, 0, this.width, this.height, 0xFF10121A, 0xFF05060A);
         graphics.fill(left - 8, 18, left + panelWidth + 8, bottom, 0xEE151923);
         graphics.fill(left - 8, 18, left + panelWidth + 8, 21, 0xFF6B62FF);
         graphics.text(this.font, "meta plays minecraft", left, 28, 0xFFFFFFFF, true);
@@ -322,28 +296,69 @@ public final class MetaAiConfigScreen extends Screen {
             case OPENAI_COMPATIBLE -> "openai compatible";
             case LOCAL -> "local";
         };
-        String liveState = config.aiEnabled ? "ai on" : "ai off";
-        String bridgeState = config.useRealMetaBot ? "metabot on" : "metabot off";
-        String summary = provider + "  •  " + liveState + "  •  " + bridgeState;
+        String summary = provider + "  •  " + (config.aiEnabled ? "ai on" : "ai off")
+                + "  •  " + (config.useRealMetaBot ? "metabot on" : "metabot off");
         graphics.text(this.font, summary, left + panelWidth - this.font.width(summary), 29, 0xFF7C86FF);
+
+        drawSection(graphics, tab, contentTop, innerLeft, innerWidth);
+
+        if (tab == Tab.PROVIDER) {
+            graphics.text(this.font, "provider", innerLeft, 101, 0xFFAEB6CA);
+            graphics.text(this.font, "chat completions url", innerLeft, 137, 0xFFAEB6CA);
+            graphics.text(this.font, "model name", innerLeft, 185, 0xFFAEB6CA);
+            graphics.text(this.font, "api key (optional)", innerLeft, 233, 0xFFAEB6CA);
+            drawHint(graphics, "provider controls the endpoint family; fields remain editable", innerLeft, 298, innerWidth);
+        } else if (tab == Tab.BRAIN) {
+            drawHint(graphics, "changes save immediately and are read during gameplay", innerLeft, 247, innerWidth);
+        } else if (tab == Tab.TUNING) {
+            drawCard(graphics, "temperature", "lower = steadier, higher = more varied", innerLeft, 229, innerWidth / 2 - 5);
+            drawCard(graphics, "max tokens", "limits the size of each ai response", innerLeft + innerWidth / 2 + 5, 229, innerWidth / 2 - 5);
+            drawCard(graphics, "timeout", "max wait before a provider request fails", innerLeft, 276, innerWidth / 2 - 5);
+            drawCard(graphics, "decision interval", "smaller = faster reactions and more requests", innerLeft + innerWidth / 2 + 5, 276, innerWidth / 2 - 5);
+        } else {
+            drawHint(graphics, "guardrails are enforced by the action layer, not only the ai prompt", innerLeft, 250, innerWidth);
+        }
 
         if (statusUntil > System.currentTimeMillis()) {
             graphics.text(this.font, status, left, bottom + 6 - this.font.lineHeight, 0xFFB8C0D8);
         }
     }
 
-    private void drawlessHint(String text, int x, int y, int width) {
-        String clipped = text;
-        while (this.font.width(clipped) > width && clipped.length() > 4) {
-            clipped = clipped.substring(0, clipped.length() - 4) + "...";
-        }
-        // Rendered during extractRenderState through a lightweight widget to keep Minecraft 26.2's GUI pipeline happy.
-        addRenderableWidget(Button.builder(Component.literal(clipped), b -> status("info", 900L))
-                .bounds(x, y, width, 20).build());
+    private void drawSection(GuiGraphicsExtractor graphics, Tab tab, int y, int x, int width) {
+        String title = switch (tab) {
+            case PROVIDER -> "connection";
+            case BRAIN -> "behavior";
+            case TUNING -> "generation & timing";
+            case SAFETY -> "guardrails";
+        };
+        String subtitle = switch (tab) {
+            case PROVIDER -> "configure the ai service and verify the connection";
+            case BRAIN -> "control the autonomous systems that drive the player";
+            case TUNING -> "control how often the brain thinks and how requests behave";
+            case SAFETY -> "conservative rules that keep the player from attacking people";
+        };
+        graphics.fill(x, y, x + width, y + 34, 0xFF1B1F2D);
+        graphics.text(this.font, title, x + 8, y + 6, 0xFFEDEFFF, true);
+        graphics.text(this.font, fitText(subtitle, width - 16), x + 8, y + 19, 0xFF8D95AA);
     }
 
-    private void drawlessCard(String title, String subtitle, int x, int y, int width) {
-        addRenderableWidget(Button.builder(Component.literal(title + "  •  " + subtitle), b -> status(title, 900L))
-                .bounds(x, y, width, 42).build());
+    private void drawHint(GuiGraphicsExtractor graphics, String text, int x, int y, int width) {
+        graphics.fill(x, y, x + width, y + 22, 0xFF1B1F2D);
+        graphics.text(this.font, fitText(text, width - 12), x + 6, y + 7, 0xFF8D95AA);
+    }
+
+    private void drawCard(GuiGraphicsExtractor graphics, String title, String subtitle, int x, int y, int width) {
+        graphics.fill(x, y, x + width, y + 40, 0xFF1B1F2D);
+        graphics.text(this.font, title, x + 7, y + 6, 0xFFEDEFFF, true);
+        graphics.text(this.font, fitText(subtitle, width - 14), x + 7, y + 20, 0xFF8D95AA);
+    }
+
+    private String fitText(String text, int width) {
+        if (this.font.width(text) <= width) return text;
+        String clipped = text;
+        while (clipped.length() > 4 && this.font.width(clipped + "...") > width) {
+            clipped = clipped.substring(0, clipped.length() - 1);
+        }
+        return clipped + "...";
     }
 }
