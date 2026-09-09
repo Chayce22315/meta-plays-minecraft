@@ -9,7 +9,14 @@ public final class AiActionParser {
 
     public static AiAction parse(String json) {
         try {
-            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+            return parse(JsonParser.parseString(json).getAsJsonObject());
+        } catch (RuntimeException ignored) {
+            return AiAction.noop();
+        }
+    }
+
+    public static AiAction parse(JsonObject root) {
+        try {
             String type = value(root, "type", "noop").toLowerCase();
             return new AiAction(
                     type,
