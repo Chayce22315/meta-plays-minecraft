@@ -2,6 +2,58 @@
 
 fabric client mod for minecraft java 26.2 that lets a local ai model control a cooperative minecraft player.
 
+## quick start: get metabot into your world
+
+on windows, the repository now includes one-click setup and launch scripts.
+
+### 1. install node.js
+
+metabot is a node.js process. make sure `node` and `npm` are available in your terminal.
+
+### 2. set up metabot
+
+from the repository root, double-click:
+
+```text
+setup-metabot.bat
+```
+
+this checks for node/npm and installs the special minecraft 26.2 mineflayer dependency.
+
+### 3. launch minecraft
+
+start minecraft java 26.2 with the fabric mod, enter your singleplayer world, and use **open to lan**.
+
+### 4. start the ai player
+
+from the repository root, double-click:
+
+```text
+start-metabot.bat
+```
+
+the launcher asks for the server address, LAN port, and bot username. for a local world, the defaults are:
+
+```text
+server: 127.0.0.1
+port: 25565
+username: MetaBot
+```
+
+if minecraft shows a different LAN port, enter that port when prompted.
+
+when the terminal prints:
+
+```text
+[meta-bot] joined the world
+```
+
+the ai player has joined as a separate client connection.
+
+### automatic in-game bridge
+
+the fabric mod also contains a local bot bridge. in a singleplayer world opened to LAN, the bridge can discover the integrated server's actual LAN port and start `bot/index.js` for you. this avoids manually entering the port.
+
 ## current behavior layer
 
 - movement: forward, backward, strafe, jump, sprint, crouch
@@ -18,6 +70,7 @@ fabric client mod for minecraft java 26.2 that lets a local ai model control a c
 - action validation and distance limits
 - local openai-compatible model bridge
 - in-game configuration through mod menu
+- persistent high-level ai goals
 
 ## ai configuration
 
@@ -49,8 +102,12 @@ this is a client-side controller. minecraft's own networking and interaction rul
 - fabric api 0.159.0+26.2
 - java 25
 - mod menu 20.0.0
+- node.js for metabot
+
+## bot documentation
+
+see [`bot/README.md`](bot/README.md) for manual bot commands, troubleshooting, and the one-click launcher details.
 
 ## source template
 
-based on the official fabric example mod for minecraft 26.2:
-https://github.com/FabricMC/fabric-example-mod/tree/26.2
+based on the official fabric example mod for minecraft 26.2.
