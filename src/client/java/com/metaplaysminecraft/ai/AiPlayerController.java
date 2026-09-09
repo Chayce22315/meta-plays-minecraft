@@ -14,8 +14,9 @@ public final class AiPlayerController {
     private final LocalAiClient aiClient = new LocalAiClient();
     private final AiMemory memory = new AiMemory();
     private final StuckRecovery stuckRecovery = new StuckRecovery();
-    private final AtomicReference<AiAction> pendingAction = new AtomicReference<>(AiAction.noop());
+    private final AtomicReference<AiDecision> pendingDecision = new AtomicReference<>();
     private AiAction currentAction = AiAction.noop();
+    private AiGoal currentGoal = AiGoal.idle();
     private int ticksUntilThink;
     private int actionTicksLeft;
     private boolean thinking;
@@ -32,11 +33,16 @@ public final class AiPlayerController {
 
         if (CraftingController.isBusy()) return;
 
-        AiAction next = pendingAction.getAndSet(null);
-        if (next != null && next.isKnown()) {
-            currentAction = next;
-            actionTicksLeft = currentAction.safeDuration();
-            memory.rememberAction(currentAction);
+        AiDecision next = pendingDecision.getAndSet(null);
+        if (next != null) {
+            currentGoal = next.goal() == null ? currentGoal : next.goal().normalized();
+            if (next.action() != null && next.action().isKnown()) {
+                currentAction = next.action();
+                actionTicksLeft = currentAction.safeDuration();
+                memory.rememberAction(currentAction);
+            }
+            memory.remember("goal: " + currentGoal.type() + " - " + currentGoal.description() +
+                    (currentGoal.done() ? " [complete]" : ""));
         }
 
         execute(minecraft);
@@ -48,13 +54,16 @@ public final class AiPlayerController {
         if (--ticksUntilThink <= 0 && !thinking && minecraft.gui.screen() == null) {
             ticksUntilThink = config.decisionIntervalTicks;
             thinking = true;
-            String context = PlayerPerception.snapshot(minecraft) + "\n" + (config.memoryEnabled ? memory.context() : "");
-            aiClient.decide(context).whenComplete((action, error) -> {
-                if (error != null || action == null) {
-                    memory.remember("ai decision failed; waiting briefly");
-                    pendingAction.set(AiAction.noop());
+            String context = PlayerPerception.snapshot(minecraft) + "\n" +
+                    "Current high-level goal: " + currentGoal.type() + " - " + currentGoal.description() +
+                    " (done=" + currentGoal.done() + ")\n" +
+                    (config.memoryEnabled ? memory.context() : "");
+            aiClient.decide(context, currentGoal).whenComplete((decision, error) -> {
+                if (error != null || decision == null) {
+                    memory.remember("ai decision failed; holding goal and waiting briefly");
+                    pendingDecision.set(AiDecision.noop(currentGoal));
                 } else {
-                    pendingAction.set(action);
+                    pendingDecision.set(decision);
                 }
                 thinking = false;
             });
@@ -82,6 +91,10 @@ public final class AiPlayerController {
 
     public AiAction currentAction() {
         return currentAction;
+    }
+
+    public AiGoal currentGoal() {
+        return currentGoal;
     }
 
     public AiMemory memory() {
